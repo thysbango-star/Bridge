@@ -17,6 +17,28 @@ straight between the phones over Bluetooth and Wi-Fi.
 | **QR pairing** | The receiver shows a QR code containing a random token that changes on every launch. The sender scans it and connects to exactly that phone, and the receiver sees "QR verified". |
 | **Bump to share** | With one phone nearby, tapping the phones together starts the connection (accelerometer bump detection). |
 
+## Sharing from Gallery (works over other apps)
+
+**Sending:** in Samsung Gallery, select photos → **Share → Flow Share**. A see-through Flow Share layer
+opens *on top of Gallery*, showing your thumbnails and "Tap phones together". Bump the phones (or tap the
+phone's chip) and the liquid bloom plays over Gallery. A compact card with a mini liquid vessel shows
+progress, then the layer closes and you're back in Gallery.
+
+**Receiving:** on Home, turn on **Receive over other apps** and allow **Display over other apps**.
+Flow Share keeps a small "Ready to receive" notification, and while you're in Gallery (or any app):
+- the bloom plays on top of the screen the moment the other phone connects,
+- the accept card drops in from the top (contact) edge,
+- liquid flows along the top edge during the transfer, followed by a settling wave and a success mark,
+- photos and videos land in a **Flow Share album** in Gallery (Pictures/Flow Share, Movies/Flow Share).
+
+Without the overlay permission, a heads-up notification with **Accept / Decline** is shown instead.
+
+Limits (Android security rules):
+- Apps can't read another app's selection, so Gallery's **Share → Flow Share** step is needed to tell Flow Share which photos to send.
+- Over another app the bloom is drawn *on top* as a glowing liquid layer. Bending Gallery's own pixels would require screen recording.
+- The full-screen bloom layer is 80% opaque so that Android 12+ keeps passing your touches through to Gallery.
+- Samsung may put background apps to sleep. If receiving stops, go to Settings → Battery → Background usage limits and add Flow Share to **Never sleeping apps**.
+
 ## The liquid animation
 
 The phone-to-phone animation is rebuilt from the reference video, studied frame by frame:
