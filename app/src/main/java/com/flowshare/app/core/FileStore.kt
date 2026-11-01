@@ -52,13 +52,20 @@ object FileStore {
         val name = FileNames.sanitize(meta.name)
         runCatching {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val values = ContentValues().apply {
-                    put(MediaStore.Downloads.DISPLAY_NAME, name)
-                    put(MediaStore.Downloads.MIME_TYPE, meta.mime)
-                    put(MediaStore.Downloads.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/$FOLDER")
-                    put(MediaStore.Downloads.IS_PENDING, 1)
+                // Photos → Pictures/Flow Share and videos → Movies/Flow Share, so they show up as a
+                // "Flow Share" album in Samsung Gallery. Everything else → Downloads/Flow Share.
+                val (collection, dir) = when (meta.kind) {
+                    FileKind.IMAGE -> MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY) to Environment.DIRECTORY_PICTURES
+                    FileKind.VIDEO -> MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY) to Environment.DIRECTORY_MOVIES
+                    else -> MediaStore.Downloads.EXTERNAL_CONTENT_URI to Environment.DIRECTORY_DOWNLOADS
                 }
-                val dest = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                val values = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+                    put(MediaStore.MediaColumns.MIME_TYPE, meta.mime)
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, "$dir/$FOLDER")
+                    put(MediaStore.MediaColumns.IS_PENDING, 1)
+                }
+                val dest = resolver.insert(collection, values)
                     ?: error("MediaStore insert failed")
                 try {
                     resolver.openInputStream(source).use { input ->
@@ -68,7 +75,7 @@ object FileStore {
                         }
                     }
                     values.clear()
-                    values.put(MediaStore.Downloads.IS_PENDING, 0)
+                    values.put(MediaStore.MediaColumns.IS_PENDING, 0)
                     resolver.update(dest, values, null, null)
                 } catch (t: Throwable) {
                     resolver.delete(dest, null, null)
@@ -78,7 +85,12 @@ object FileStore {
                 dest
             } else {
                 @Suppress("DEPRECATION")
-                val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), FOLDER)
+                val publicDir = when (meta.kind) {
+                    FileKind.IMAGE -> Environment.DIRECTORY_PICTURES
+                    FileKind.VIDEO -> Environment.DIRECTORY_MOVIES
+                    else -> Environment.DIRECTORY_DOWNLOADS
+                }
+                val dir = File(Environment.getExternalStoragePublicDirectory(publicDir), FOLDER)
                 dir.mkdirs()
                 val target = uniqueFile(dir, name)
                 val src = File(requireNotNull(source.path))

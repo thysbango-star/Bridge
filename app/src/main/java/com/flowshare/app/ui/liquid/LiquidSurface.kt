@@ -25,6 +25,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.foundation.Canvas
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
@@ -155,36 +158,60 @@ fun Modifier.liquidSurface(c: LiquidController): Modifier =
 private fun Modifier.liquidAgsl(c: LiquidController): Modifier = composed {
     val shader = remember { RuntimeShader(LIQUID_AGSL) }
     graphicsLayer {
-        val s = c.strength.value
-        val f = c.fill.value
-        if (s < 0.002f && f < 0.002f) {
+        if (!c.active) {
             renderEffect = null
             return@graphicsLayer
         }
-        val w = size.width
-        val h = size.height
-        val diag = hypot(w, h)
-        shader.setFloatUniform("size", w, h)
-        shader.setFloatUniform("origin", c.originX * w, c.originY * h)
-        shader.setFloatUniform("radius", c.radius.value * diag)
-        shader.setFloatUniform("band", diag * 0.085f)
-        shader.setFloatUniform("time", c.time.value)
-        shader.setFloatUniform("strength", s)
-        shader.setFloatUniform("fill", f)
-        shader.setFloatUniform("liquid", 0.96f, 0.92f, 1.0f)        // luminous lavender-white body
-        shader.setFloatUniform("rimA", 0.545f, 0.361f, 0.965f)      // Flow violet
-        shader.setFloatUniform("rimB", 0.894f, 0.549f, 1.0f)        // orchid / iridescent pink
-        shader.setFloatUniform("rimC", 1.0f, 0.86f, 0.80f)          // warm white core (amber hint from reference)
+        shader.applyLiquid(c, size.width, size.height)
         renderEffect = android.graphics.RenderEffect
             .createRuntimeShaderEffect(shader, "content")
             .asComposeRenderEffect()
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+internal fun RuntimeShader.applyLiquid(c: LiquidController, w: Float, h: Float) {
+    val diag = hypot(w, h)
+    setFloatUniform("size", w, h)
+    setFloatUniform("origin", c.originX * w, c.originY * h)
+    setFloatUniform("radius", c.radius.value * diag)
+    setFloatUniform("band", diag * 0.085f)
+    setFloatUniform("time", c.time.value)
+    setFloatUniform("strength", c.strength.value)
+    setFloatUniform("fill", c.fill.value)
+    setFloatUniform("liquid", 0.96f, 0.92f, 1.0f)        // luminous lavender-white body
+    setFloatUniform("rimA", 0.545f, 0.361f, 0.965f)      // Flow violet
+    setFloatUniform("rimB", 0.894f, 0.549f, 1.0f)        // orchid / iridescent pink
+    setFloatUniform("rimC", 1.0f, 0.86f, 0.80f)          // warm white core (amber hint from reference)
+}
+
+/**
+ * The same bloom, generated without any underlying content — used when Flow Share draws on top
+ * of another app (Gallery etc.), whose pixels we are not allowed to read.
+ */
+@Composable
+fun LiquidOverlay(c: LiquidController, modifier: Modifier = Modifier) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        val shader = remember { RuntimeShader(LIQUID_OVERLAY_AGSL) }
+        val brush = remember(shader) { ShaderBrush(shader) }
+        Canvas(modifier) {
+            if (!c.active) return@Canvas
+            shader.applyLiquid(c, size.width, size.height)
+            drawRect(brush)
+        }
+    } else {
+        Canvas(modifier) { drawLiquidFallback(c) }
+    }
+}
+
 /** Android 8–12: draw the bloom, rim and liquid body on top of the content with Canvas. */
 private fun Modifier.liquidFallback(c: LiquidController): Modifier = drawWithContent {
     drawContent()
-    if (!c.active) return@drawWithContent
+    drawLiquidFallback(c)
+}
+
+private fun DrawScope.drawLiquidFallback(c: LiquidController) {
+    if (!c.active) return
     val s = c.strength.value
     val f = c.fill.value
     val t = c.time.value
@@ -287,5 +314,52 @@ half4 main(float2 p) {
     col += rc * rim * strength * 0.9 + glowC * glow * strength * 0.35;
 
     return half4(half3(clamp(col, 0.0, 1.0)), 1.0);
+}
+"""
+
+/** Generative variant of [LIQUID_AGSL]: same geometry, outputs premultiplied colour + alpha. */
+private const val LIQUID_OVERLAY_AGSL = """
+uniform float2 size;
+uniform float2 origin;
+uniform float radius;
+uniform float band;
+uniform float time;
+uniform float strength;
+uniform float fill;
+uniform float3 liquid;
+uniform float3 rimA;
+uniform float3 rimB;
+uniform float3 rimC;
+
+half4 main(float2 p) {
+    float2 v = p - origin;
+    float2 ve = float2(v.x * 0.8, v.y);
+    float d = length(ve);
+    float ang = atan(ve.y, ve.x);
+
+    float wob = sin(ang * 5.0 + time * 1.7) * 0.5
+              + sin(ang * 11.0 - time * 2.6) * 0.22
+              + sin(ang * 2.0 + time * 0.8) * 0.6;
+    float r = radius + wob * band * 0.16 * strength;
+    float x = (d - r) / band;
+    float rim = exp(-x * x * 3.2);
+    float inside = 1.0 - smoothstep(-0.7, 0.2, x);
+
+    float h = 0.5 + 0.5 * sin(ang * 1.6 + time * 1.2 - x * 1.5);
+    float3 rc = mix(rimA, rimB, h);
+    rc = mix(rc, rimC, (1.0 - smoothstep(-1.0, 0.0, x)) * 0.8);
+
+    float caustic = 0.5 + 0.5 * sin(p.x * 0.018 + time * 1.1 + sin(p.y * 0.013 - time * 0.7) * 2.2);
+    float near = 0.45 + 0.55 * exp(-d / (length(size) * 0.42));
+    float swell = 0.5 + 0.5 * sin(d * 0.032 - time * 4.0);
+    float bodyA = clamp(inside * fill * near, 0.0, 1.0) * (0.78 + 0.22 * swell) * 0.85;
+    float rimA2 = clamp(rim * strength, 0.0, 1.0) * 0.9;
+    float glow = exp(-d / max(r * 0.5, 1.0)) * strength * 0.45;
+    float3 glowC = mix(rimC, rimA, 0.4);
+
+    float a = clamp(bodyA + rimA2 + glow, 0.0, 1.0);
+    float3 col = liquid * (0.88 + 0.12 * caustic) * bodyA + rc * rimA2 + glowC * glow;
+    col = min(col, float3(a));
+    return half4(half3(col), half(a));
 }
 """

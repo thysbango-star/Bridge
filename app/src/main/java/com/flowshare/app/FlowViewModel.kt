@@ -41,6 +41,12 @@ class FlowViewModel(app: Application) : AndroidViewModel(app) {
         .map { m -> m.values.sortedBy { it.foundAt } }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
+    private val prefs = FlowPrefs(app)
+    private val _receiveAnywhere = MutableStateFlow(prefs.receiveAnywhere)
+    val receiveAnywhere: StateFlow<Boolean> = _receiveAnywhere.asStateFlow()
+    private val _overlayAllowed = MutableStateFlow(FlowPrefs.canDrawOverlays(app))
+    val overlayAllowed: StateFlow<Boolean> = _overlayAllowed.asStateFlow()
+
     val session = nearby.session
     val offer = nearby.offer
     val radio = nearby.radio
@@ -59,7 +65,23 @@ class FlowViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun startRadios() = nearby.start()
+    fun startRadios() {
+        nearby.start()
+        if (prefs.receiveAnywhere) com.flowshare.app.nearby.ReceiveService.start(getApplication())
+    }
+
+    /** Re-read settings that can change outside the app (overlay permission, notification "Turn off"). */
+    fun refreshSettings() {
+        _receiveAnywhere.value = prefs.receiveAnywhere
+        _overlayAllowed.value = FlowPrefs.canDrawOverlays(getApplication())
+    }
+
+    fun setReceiveAnywhere(on: Boolean) {
+        prefs.receiveAnywhere = on
+        _receiveAnywhere.value = on
+        if (on) com.flowshare.app.nearby.ReceiveService.start(getApplication())
+        else com.flowshare.app.nearby.ReceiveService.stop(getApplication())
+    }
 
     fun onFilesPicked(uris: List<Uri>) {
         if (uris.isEmpty()) return

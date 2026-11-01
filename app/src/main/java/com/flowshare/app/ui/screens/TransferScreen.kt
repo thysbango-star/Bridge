@@ -129,7 +129,7 @@ fun TransferScreen(
                             )
                             Spacer(Modifier.height(6.dp))
                             Text(
-                                if (receiving) "Saved to Downloads / Flow Share" else "${Format.bytes(s.totalBytes)} delivered to ${s.peerName}",
+                                if (receiving) (if (s.files.all { it.meta.kind == com.flowshare.app.core.FileKind.IMAGE || it.meta.kind == com.flowshare.app.core.FileKind.VIDEO }) "Saved to the Flow Share album in Gallery" else "Saved to Flow Share folders (Pictures, Movies, Downloads)") else "${Format.bytes(s.totalBytes)} delivered to ${s.peerName}",
                                 color = Flow.Lavender, style = MaterialTheme.typography.bodyMedium,
                             )
                         }

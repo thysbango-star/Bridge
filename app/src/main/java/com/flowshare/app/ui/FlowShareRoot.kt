@@ -1,6 +1,12 @@
 package com.flowshare.app.ui
 
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import android.widget.Toast
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import com.flowshare.app.FlowPrefs
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -75,6 +81,24 @@ fun FlowShareRoot(vm: FlowViewModel) {
     val radio by vm.radio.collectAsStateWithLifecycle()
     val deviceName by vm.deviceName.collectAsStateWithLifecycle()
     val pendingQr by vm.pendingQr.collectAsStateWithLifecycle()
+    val receiveAnywhere by vm.receiveAnywhere.collectAsStateWithLifecycle()
+    val overlayAllowed by vm.overlayAllowed.collectAsStateWithLifecycle()
+
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { vm.refreshSettings() }
+    val overlaySettings = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        vm.refreshSettings()
+    }
+    val toggleAnywhere: (Boolean) -> Unit = { on ->
+        vm.setReceiveAnywhere(on)
+        if (on && !FlowPrefs.canDrawOverlays(context)) {
+            Toast.makeText(context, "Allow Flow Share to display over other apps for the animation", Toast.LENGTH_LONG).show()
+            runCatching {
+                overlaySettings.launch(
+                    Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}")),
+                )
+            }
+        }
+    }
 
     LaunchedEffect(granted) { if (granted) vm.startRadios() }
 
@@ -182,6 +206,9 @@ fun FlowShareRoot(vm: FlowViewModel) {
                     onShowQr = { vm.go(Screen.ShowQr) },
                     onToggleReceiving = vm::setReceiving,
                     onRename = vm::rename,
+                    receiveAnywhere = receiveAnywhere,
+                    overlayAllowed = overlayAllowed,
+                    onToggleAnywhere = toggleAnywhere,
                 )
                 Dest.Nearby -> NearbyScreen(
                     time = time,

@@ -330,3 +330,36 @@ fun SuccessMark(play: Boolean, modifier: Modifier = Modifier) {
         drawPath(seg, Color.White, style = Stroke(width = sw * 1.4f, cap = StrokeCap.Round, join = StrokeJoin.Round))
     }
 }
+
+/**
+ * A liquid band hanging from the contact (top) edge — the transfer progress indicator used when
+ * Flow Share is drawn on top of another app. Its depth follows [progress].
+ */
+@Composable
+fun EdgeFlow(progress: Float, energy: Float, time: State<Float>, modifier: Modifier = Modifier) {
+    val depth by animateFloatAsState(progress, spring(dampingRatio = 0.85f, stiffness = 50f), label = "edge")
+    val e by animateFloatAsState(energy, tween(900), label = "edgeE")
+    val p1 = remember { Path() }
+    val p2 = remember { Path() }
+    Canvas(modifier) {
+        val t = time.value
+        val w = size.width
+        val surface = (10f + 70f * depth) * density
+        val amp = (4f + 7f * e) * density
+        drawCircle(
+            Brush.radialGradient(
+                0f to Flow.Lavender.copy(alpha = 0.5f * (0.4f + 0.6f * e)),
+                1f to Color.Transparent,
+                center = Offset(w / 2f, 0f), radius = w * 0.55f,
+            ),
+            radius = w * 0.55f, center = Offset(w / 2f, 0f),
+        )
+        drawLiquidLayer(p1, surface + 6f * density, 0f, t, amp * 1.2f, w * 1.1f, 1.0f, 2.3f, SolidColor(Flow.Orchid), alpha = 0.35f)
+        drawLiquidLayer(
+            p2, surface, 0f, t, amp, w * 0.8f, 1.6f, 0f,
+            Brush.verticalGradient(listOf(Flow.VioletBright, Flow.Violet, Flow.VioletDeep), startY = 0f, endY = surface + amp),
+            alpha = 0.92f,
+        )
+        surfaceHighlight(surface, t, amp, w * 0.8f, 1.6f, 0f, alpha = 0.9f)
+    }
+}

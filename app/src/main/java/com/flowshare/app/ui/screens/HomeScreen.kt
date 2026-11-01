@@ -2,6 +2,8 @@ package com.flowshare.app.ui.screens
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -59,6 +61,9 @@ fun HomeScreen(
     onShowQr: () -> Unit,
     onToggleReceiving: (Boolean) -> Unit,
     onRename: (String) -> Unit,
+    receiveAnywhere: Boolean = false,
+    overlayAllowed: Boolean = false,
+    onToggleAnywhere: (Boolean) -> Unit = {},
 ) {
     var renaming by remember { mutableStateOf(false) }
 
@@ -88,7 +93,7 @@ fun HomeScreen(
 
         ShareNearbyButton(time, onShare)
 
-        Spacer(Modifier.height(36.dp))
+        Spacer(Modifier.height(24.dp))
         Text(
             "Photos, videos, documents, APKs —\nanything, straight to a phone beside you.",
             color = Flow.Mist, textAlign = TextAlign.Center, style = MaterialTheme.typography.bodyMedium,
@@ -100,7 +105,35 @@ fun HomeScreen(
             GhostButton("Receive via QR", onShowQr, icon = Icons.Filled.Share)
             GhostButton("Rename", { renaming = true }, icon = Icons.Filled.Edit)
         }
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(16.dp))
+        Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(Flow.Surface)
+                .border(1.dp, Flow.Stroke, RoundedCornerShape(22.dp))
+                .padding(start = 18.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("Receive over other apps", color = Flow.White, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    when {
+                        !receiveAnywhere -> "Bump while in Gallery — the flow plays on top"
+                        overlayAllowed -> "On · animation shows over any app"
+                        else -> "On · using notifications (allow \"Display over other apps\" for the animation)"
+                    },
+                    color = Flow.Mist, style = MaterialTheme.typography.labelMedium,
+                )
+            }
+            Switch(
+                checked = receiveAnywhere,
+                onCheckedChange = onToggleAnywhere,
+                colors = SwitchDefaults.colors(
+                    checkedTrackColor = Flow.Violet, checkedThumbColor = Flow.White,
+                    uncheckedTrackColor = Flow.SurfaceHi, uncheckedThumbColor = Flow.Mist,
+                    uncheckedBorderColor = Flow.Stroke,
+                ),
+            )
+        }
+        Spacer(Modifier.height(14.dp))
         Row(
             Modifier.clip(RoundedCornerShape(50)).clickable { renaming = true }.padding(horizontal = 12.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
