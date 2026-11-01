@@ -1,0 +1,56 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build debug + release APKs
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon --stacktrace assembleDebug assembleRelease
+
+      - name: Collect APKs
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/release/app-release.apk dist/FlowShare.apk
+          cp app/build/outputs/apk/debug/app-debug.apk dist/FlowShare-debug.apk
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FlowShare-apk
+          path: dist/*.apk
+
+      # Rolling "latest" release so the APK can be downloaded directly on a phone.
+      - name: Publish latest build
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Flow Share – latest build
+          prerelease: true
+          make_latest: true
+          body: |
+            Automatic build of `${{ github.sha }}`.
+            Download **FlowShare.apk** on your Samsung phone and open it to install.
+          files: dist/*.apk

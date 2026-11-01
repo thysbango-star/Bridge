@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- Liquid drop orb -->
+    <path android:pathData="M54,30 A24,24 0 1,1 53.99,30 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="54" android:startY="30"
+                android:endX="54" android:endY="78">
+                <item android:offset="0" android:color="#FFD9CCFF" />
+                <item android:offset="0.45" android:color="#FF8B5CF6" />
+                <item android:offset="1" android:color="#FF2A0E5C" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Wave surface -->
+    <path android:fillColor="#FFFFFFFF" android:fillAlpha="0.92"
+        android:pathData="M31,55 C37,49 44,49 50,55 C56,61 63,61 69,55 C72,52 75,51 77,51 L77,54 C74,55 72,57 69,59 C63,65 56,65 50,59 C44,53 37,53 31,59 Z" />
+    <path android:fillColor="#FFFFFFFF" android:fillAlpha="0.45"
+        android:pathData="M33,64 C39,59 45,59 51,64 C57,69 63,69 69,64 L69,66.5 C63,71.5 57,71.5 51,66.5 C45,61.5 39,61.5 33,66.5 Z" />
+</vector>
